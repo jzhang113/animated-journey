@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'app/grid.rb'
 
 REPEAT_DELAY_FRAMES = 4
@@ -5,7 +7,7 @@ REPEAT_DELAY_FRAMES = 4
 def tick(args)
   initialize(args)
 
-  if args.state.key_delay > 0
+  if args.state.key_delay.positive?
     args.state.key_delay -= 1
   else
     args.state.player_x = args.state.next_player_x
@@ -53,25 +55,27 @@ def draw(args)
   grid = args.state.grid
 
   args.outputs.labels  << [10, 680, "Hello player, you are at #{args.state.player_x}, #{args.state.player_y}"]
-  args.outputs.labels  << [10, 700, "frames: #{args.gtk.current_framerate.round }"]
+  args.outputs.labels  << [10, 700, "frames: #{args.gtk.current_framerate.round}"]
 
   args.outputs.borders << {
     x: grid.x,
     y: grid.y,
     w: grid.tile_size * 80,
-    h: grid.tile_size * 50,
+    h: grid.tile_size * 50
   }
 
   # statics
   grid.each_with_index do |row_arr, row|
     row_arr.each_with_index do |tile, col|
+      next unless tile == 1
+
       args.outputs.solids << {
         x: col * grid.tile_size + grid.x,
         y: row * grid.tile_size + grid.y,
         w: grid.tile_size,
         h: grid.tile_size,
         r: 200
-      } if tile == 1
+      }
     end
   end
 
@@ -79,7 +83,8 @@ def draw(args)
   spline = [
     [0.0, 0.75, 0.85, 1.0]
   ]
-  frac = args.easing.ease_spline (args.tick_count - REPEAT_DELAY_FRAMES + args.state.key_delay), args.tick_count, REPEAT_DELAY_FRAMES, spline
+  frac = args.easing.ease_spline (args.tick_count - REPEAT_DELAY_FRAMES + args.state.key_delay), args.tick_count,
+                                 REPEAT_DELAY_FRAMES, spline
   fractional_x = frac * (args.state.next_player_x - args.state.player_x)
   fractional_y = frac * (args.state.next_player_y - args.state.player_y)
   putz "#{args.state.key_delay} #{fractional_x} #{fractional_y}"
@@ -88,6 +93,6 @@ def draw(args)
     x: (args.state.player_x + fractional_x) * grid.tile_size + grid.x,
     y: (args.state.player_y + fractional_y) * grid.tile_size + grid.y,
     w: grid.tile_size,
-    h: grid.tile_size,
+    h: grid.tile_size
   }
 end
