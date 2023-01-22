@@ -15,11 +15,19 @@ class Grid
   end
 
   def [](x, y)
+    raise "Index #{x}, #{y} is out of bounds" unless in_bounds(x, y)
+
     @grid[y][x]
   end
 
   def []=(x, y, value)
+    raise "Index #{x}, #{y} is out of bounds" unless in_bounds(x, y)
+
     @grid[y][x] = value
+  end
+
+  def in_bounds(x, y)
+    x >= 0 && x < width && y >= 0 && y < height
   end
 
   def each(&block)
