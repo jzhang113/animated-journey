@@ -4,34 +4,18 @@ require 'app/process.rb'
 require 'app/random.rb'
 require 'app/grid.rb'
 
+Rect = Struct.new(:x, :y, :w, :h) do
+  def center
+    [x + w.idiv(2), y + h.idiv(2)]
+  end
+end
+
+Color = Struct.new(:r, :g, :b)
+
+require 'app/mapgen/map_helpers.rb'
+require 'app/mapgen/rogue_map.rb'
+
 REPEAT_DELAY_FRAMES = 4
-
-def map_gen
-  fiber = Fiber.new do
-    Grid.new(10, 10, 80, 50).tap do |map|
-      5.times do
-        make_room map
-        Fiber.yield map
-      end
-    end
-  end
-
-  callback = ->(args, result) { args.state.grid = result }
-  Process.new(fiber, callback)
-end
-
-def make_room(map)
-  w = rand_range(3..10)
-  h = rand_range(3..10)
-  x = rand(80 - w)
-  y = rand(50 - h)
-
-  w.times do |wx|
-    h.times do |wh|
-      map[x + wx, y + wh] = 1
-    end
-  end
-end
 
 def tick(args)
   initialize(args)
@@ -57,8 +41,9 @@ def run_procs(args)
 end
 
 def initialize(args)
+  args.state.generator ||= RogueMap.new(Rect.new(10, 10, 80, 50), 3..10, 3..10, 3..10)
   args.state.grid ||= Grid.new(10, 10, 80, 50)
-  args.state.procs ||= [map_gen]
+  args.state.procs ||= [args.state.generator.generate]
   args.state.player_x ||= 0
   args.state.player_y ||= 0
   args.state.next_player_x ||= 0
@@ -87,7 +72,7 @@ def handle_input(args)
   args.state.next_player_x = new_player_x if new_player_x >= 0 && new_player_x < args.state.grid.width
   args.state.next_player_y = new_player_y if new_player_y >= 0 && new_player_y < args.state.grid.height
 
-  args.state.procs << map_gen if args.inputs.keyboard.key_down.r
+  args.state.procs << args.state.generator.generate if args.inputs.keyboard.key_down.r
 end
 
 def draw(args)
@@ -105,14 +90,16 @@ def draw(args)
   # statics
   grid.each_with_index do |row_arr, row|
     row_arr.each_with_index do |tile, col|
-      next unless tile == 1
+      next if tile.nil?
 
       args.outputs.solids << {
         x: col * grid.tile_size + grid.x,
         y: row * grid.tile_size + grid.y,
         w: grid.tile_size,
         h: grid.tile_size,
-        r: 200
+        r: tile.r,
+        g: tile.g,
+        b: tile.b
       }
     end
   end
