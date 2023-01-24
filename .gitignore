@@ -46,3 +46,4 @@
 # End of https://www.toptal.com/developers/gitignore/api/ruby
 
 run.bat
+benchmarks.txt
