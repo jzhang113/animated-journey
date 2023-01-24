@@ -81,7 +81,7 @@ end
 def draw(args)
   grid = args.state.grid
 
-  args.outputs.labels  << [10, 680, "You are at #{args.state.player_x}, #{args.state.player_y}"]
+  args.outputs.labels  << [800, 680, "You are at #{args.state.player_x}, #{args.state.player_y} and the grid is #{grid[args.state.player_x, args.state.player_y]}"]
 
   args.outputs.borders << {
     x: grid.x,
@@ -100,9 +100,9 @@ def draw(args)
         y: row * grid.tile_size + grid.y,
         w: grid.tile_size,
         h: grid.tile_size,
-        r: 0,
-        g: 0,
-        b: 200
+        r: tile == 2 ? 200 : 0,
+        g: tile == 3 ? 200 : 0,
+        b: tile == 1 ? 200 : 0
       }
     end
   end

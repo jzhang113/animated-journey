@@ -21,7 +21,7 @@ def output_benchmarks(args)
   return unless args.tick_count % BENCH_OUTPUT_INTERVAL == 0
 
   benches = $benchmarks.each do |k, v|
-    $benchmarks[k] = v.sum / v.size * 1000
+    $benchmarks[k] = v.sum / v.size * 1000 if v.is_a? Array
   end
 
   benches = benches.reject { |_, v| v <= 0.01 }

@@ -19,22 +19,22 @@ class CaMap
 
       @dims.w.times do |x|
         @dims.h.times do |y|
-          map[x, y] = true if rand < @open_chance
+          map[x, y] = 1 if rand < @open_chance
         end
       end
 
       Fiber.yield map
 
       @iters.times do
-        ((@dims.w.div 2) - 1).times do |x|
-          ((@dims.h.div 2) - 1).times do |y|
+        ((map.width.div 2) - 1).times do |x|
+          ((map.height.div 2) - 1).times do |y|
             next unless rand < @visit_chance
 
             # Unrolling updates
-            update_cell(map, backbuf, 2 * x + 1, 2 * y + 1, true)
-            update_cell(map, backbuf, 2 * x + 2, 2 * y + 1, true)
-            update_cell(map, backbuf, 2 * x + 1, 2 * y + 2, true)
-            update_cell(map, backbuf, 2 * x + 2, 2 * y + 2, true)
+            update_cell(map, backbuf, 2 * x + 1, 2 * y + 1, 1)
+            update_cell(map, backbuf, 2 * x + 2, 2 * y + 1, 1)
+            update_cell(map, backbuf, 2 * x + 1, 2 * y + 2, 1)
+            update_cell(map, backbuf, 2 * x + 2, 2 * y + 2, 1)
           end
         end
 
@@ -42,11 +42,61 @@ class CaMap
         Fiber.yield map
       end
 
+      caverns = find_caverns(map)
+
+      Fiber.yield map
+
+      # TODO: better room connections
+      caverns.each_cons(2) do |a, b|
+        ax, ay = a.sample
+        bx, by = b.sample
+
+        path = make_path_horiz(ax, bx, ay)
+        render map, path, 2
+
+        path = make_path_vert(ay, by, bx)
+        render map, path, 2
+      end
+
       map
     end
 
     callback = ->(args, result) { args.state.grid = result }
-    Process.new(fiber, callback, @debug ? 1 : 0)
+    Process.new(fiber, callback, @debug ? 5 : 0)
+  end
+
+  def find_caverns(map)
+    caverns = []
+
+    map.width.times do |x|
+      map.height.times do |y|
+        next if map.grid[y][x].nil?
+
+        region = []
+        flood_check(map, x, y, region)
+
+        if region.count > 6
+          caverns << region
+        elsif region.count > 0
+          region.each { |rx, ry| map.grid[ry][rx] = nil }
+        end
+      end
+    end
+
+    caverns
+  end
+
+  def flood_check(map, x, y, region)
+    return if map.grid[y][x].nil?
+    return unless map.grid[y][x] == 1
+
+    map.grid[y][x] = 2
+    region << [x, y]
+
+    flood_check(map, x - 1, y, region)
+    flood_check(map, x + 1, y, region)
+    flood_check(map, x, y - 1, region)
+    flood_check(map, x, y + 1, region)
   end
 
   def update_cell(map, backbuf, x, y, data)
