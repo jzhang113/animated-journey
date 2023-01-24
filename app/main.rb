@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'app/benchmark.rb'
 require 'app/process.rb'
 require 'app/random.rb'
 require 'app/grid.rb'
@@ -13,7 +14,7 @@ end
 Color = Struct.new(:r, :g, :b)
 
 require 'app/mapgen/map_helpers.rb'
-require 'app/mapgen/rogue_map.rb'
+require 'app/mapgen/ca_map.rb'
 
 REPEAT_DELAY_FRAMES = 4
 
@@ -32,6 +33,7 @@ def tick(args)
 
   draw(args)
 
+  output_benchmarks(args)
   args.outputs.debug << args.gtk.framerate_diagnostics_primitives
 end
 
@@ -41,7 +43,8 @@ def run_procs(args)
 end
 
 def initialize(args)
-  args.state.generator ||= RogueMap.new(Rect.new(10, 10, 80, 50), 3..10, 3..10, 3..10)
+  # args.state.generator ||= RogueMap.new(Rect.new(10, 10, 80, 50), 3..10, 3..10, 3..10)
+  args.state.generator ||= CaMap.new(Rect.new(10, 10, 80, 50), [0b1_0011_0001, 0b1_1111_0000], 0.15, 0.85, 5)
   args.state.grid ||= Grid.new(10, 10, 80, 50)
   args.state.procs ||= [args.state.generator.generate]
   args.state.player_x ||= 0
@@ -72,7 +75,7 @@ def handle_input(args)
   args.state.next_player_x = new_player_x if new_player_x >= 0 && new_player_x < args.state.grid.width
   args.state.next_player_y = new_player_y if new_player_y >= 0 && new_player_y < args.state.grid.height
 
-  args.state.procs << args.state.generator.generate if args.inputs.keyboard.key_down.r
+  args.state.procs = [args.state.generator.generate] if args.inputs.keyboard.key_down.r
 end
 
 def draw(args)
@@ -97,9 +100,9 @@ def draw(args)
         y: row * grid.tile_size + grid.y,
         w: grid.tile_size,
         h: grid.tile_size,
-        r: tile.r,
-        g: tile.g,
-        b: tile.b
+        r: 0,
+        g: 0,
+        b: 200
       }
     end
   end

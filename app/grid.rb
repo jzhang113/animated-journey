@@ -3,7 +3,7 @@
 class Grid
   include Enumerable
 
-  attr_reader :x, :y, :width, :height, :tile_size
+  attr_reader :x, :y, :width, :height, :tile_size, :grid
 
   def initialize(x, y, width, height, tile_size = 12)
     @x = x
@@ -24,6 +24,12 @@ class Grid
     raise "Index #{x}, #{y} is out of bounds" unless in_bounds(x, y)
 
     @grid[y][x] = value
+  end
+
+  def present?(x, y)
+    return false unless in_bounds(x, y)
+
+    !@grid[y][x].nil?
   end
 
   def in_bounds(x, y)
