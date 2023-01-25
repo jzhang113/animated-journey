@@ -16,6 +16,9 @@ Color = Struct.new(:r, :g, :b)
 require 'app/mapgen/map_helpers.rb'
 require 'app/mapgen/player_spawn.rb'
 require 'app/mapgen/ca_map.rb'
+require 'app/mapgen/map_culler.rb'
+require 'app/mapgen/simple_hallways.rb'
+require 'app/mapgen/random_tiles.rb'
 
 REPEAT_DELAY_FRAMES = 4
 
@@ -64,7 +67,10 @@ end
 
 def map_gen_chain
   [].tap do |chain|
-    chain << CaMap.new(Rect.new(10, 10, 80, 50), [0b1_0011_0001, 0b1_1111_0000], 0.15, 0.85, 5)
+    chain << RandomTiles.new(Rect.new(10, 10, 80, 50), 0.35)
+    chain << CaMap.new([0b1_0011_0001, 0b1_1111_0000], 0.9, 5)
+    chain << MapCuller.new(6, true)
+    chain << SimpleHallways.new
     chain << PlayerSpawn.new
   end
 end

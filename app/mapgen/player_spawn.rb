@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class PlayerSpawn
-  include MapHelpers
-
   def generate
     fiber = Fiber.new do |args|
       found = false
