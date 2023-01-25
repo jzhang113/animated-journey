@@ -1,15 +1,6 @@
 # frozen_string_literal: true
 
 module MapHelpers
-  def make_room_rect(map_dims, width_range, height_range)
-    w = rand_range(width_range)
-    h = rand_range(height_range)
-    x = rand(map_dims.w - w)
-    y = rand(map_dims.h - h)
-
-    Rect.new(x, y, w, h)
-  end
-
   def make_path_horiz(x1, x2, y)
     xa, xb = [x1, x2].minmax
 

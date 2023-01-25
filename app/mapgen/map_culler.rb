@@ -1,16 +1,28 @@
 # frozen_string_literal: true
 
 class MapCuller
-  def initialize(min_size, store_rooms)
+  ROOM_OP = {
+    ignore: 0,
+    append: 1,
+    overwrite: 2
+  }.freeze
+
+  def initialize(min_size, room_op)
     @min_size = min_size
-    @store_rooms = store_rooms
+    @room_op = room_op
   end
 
   def generate
     fiber = Fiber.new do |args|
       rooms = find_rooms(args.state.grid)
-      args.state.rooms = rooms if @store_rooms
-      # args.state.grid = map
+
+      case @room_op
+      when ROOM_OP[:append]
+        args.state.rooms ||= []
+        args.state.rooms += rooms
+      when ROOM_OP[:overwrite]
+        args.state.rooms = rooms
+      end
     end
 
     Process.new(fiber)

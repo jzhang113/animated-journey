@@ -9,6 +9,12 @@ Rect = Struct.new(:x, :y, :w, :h) do
   def center
     [x + w.idiv(2), y + h.idiv(2)]
   end
+
+  def sample
+    a = rand_range(x...(x + w))
+    b = rand_range(y...(y + h))
+    [a, b]
+  end
 end
 
 Color = Struct.new(:r, :g, :b)
@@ -19,6 +25,7 @@ require 'app/mapgen/ca_map.rb'
 require 'app/mapgen/map_culler.rb'
 require 'app/mapgen/simple_hallways.rb'
 require 'app/mapgen/random_tiles.rb'
+require 'app/mapgen/simple_rooms.rb'
 
 REPEAT_DELAY_FRAMES = 4
 
@@ -69,7 +76,8 @@ def map_gen_chain
   [].tap do |chain|
     chain << RandomTiles.new(Rect.new(10, 10, 80, 50), 0.35)
     chain << CaMap.new([0b1_0011_0001, 0b1_1111_0000], 0.9, 5)
-    chain << MapCuller.new(6, true)
+    chain << MapCuller.new(6, MapCuller::ROOM_OP[:overwrite])
+    chain << SimpleRooms.new(10..10, 3..8, 3..8)
     chain << SimpleHallways.new
     chain << PlayerSpawn.new
   end
