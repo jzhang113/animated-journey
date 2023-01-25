@@ -7,35 +7,32 @@
 # After run returns either a partial or full result, it will be passed to the callback along with the global args
 # Note that a partial result of nil will not trigger the callback
 class Process
-  attr_reader :fiber, :delay, :callback
+  attr_reader :fiber, :delay
 
-  FRAME_MS_TIME = 15
+  FRAME_MS_TIME = 10
 
-  def initialize(fiber, callback, delay = 0)
+  def initialize(fiber, delay = 0)
     @fiber = fiber
-    @callback = callback
     @delay = delay
   end
 
   def run(args)
-    result = if @delay.positive?
-               run_once(args.tick_count)
-             else
-               run_for_frametime
-             end
-
-    @callback.call(args, result) unless result.nil?
+    if @delay.positive?
+      run_once(args, args.tick_count)
+    else
+      run_for_frametime(args, FRAME_MS_TIME)
+    end
   end
 
   private
 
-  def run_once(tick_count)
-    @fiber.resume if tick_count % @delay == 0
+  def run_once(args, tick_count)
+    @fiber.resume(args) if tick_count % @delay == 0
   end
 
-  def run_for_frametime
+  def run_for_frametime(args, ms)
     start_time = Time.now.to_f
-    result = @fiber.resume while @fiber.alive? && (Time.now.to_f - start_time) * 1000 < FRAME_MS_TIME
+    result = @fiber.resume(args) while @fiber.alive? && (Time.now.to_f - start_time) * 1000 < ms
     result
   end
 end

@@ -14,6 +14,7 @@ end
 Color = Struct.new(:r, :g, :b)
 
 require 'app/mapgen/map_helpers.rb'
+require 'app/mapgen/player_spawn.rb'
 require 'app/mapgen/ca_map.rb'
 
 REPEAT_DELAY_FRAMES = 4
@@ -38,15 +39,40 @@ def tick(args)
 end
 
 def run_procs(args)
-  args.state.procs.each { |p| p.run(args) }
-  args.state.procs.keep_if { |p| p.fiber.alive? }
+  # TODO: this needs to handle job scheduling, otherwise a tick can become arbitrarily slow
+  # also under the current system, each step takes at least a tick, even if it finishes faster
+  args.state.procs.each do |chain|
+    chain.current += 1 unless chain.steps[chain.current].fiber.alive?
+
+    if chain.current >= chain.steps.length
+      chain.done = true
+    else
+      chain.steps[chain.current].run(args)
+    end
+  end
+
+  args.state.procs.reject!(&:done)
+end
+
+def process_chain(constructors)
+  {
+    current: 0,
+    done: false,
+    steps: constructors.map(&:generate)
+  }
+end
+
+def map_gen_chain
+  [].tap do |chain|
+    chain << CaMap.new(Rect.new(10, 10, 80, 50), [0b1_0011_0001, 0b1_1111_0000], 0.15, 0.85, 5)
+    chain << PlayerSpawn.new
+  end
 end
 
 def initialize(args)
-  # args.state.generator ||= RogueMap.new(Rect.new(10, 10, 80, 50), 3..10, 3..10, 3..10)
-  args.state.generator ||= CaMap.new(Rect.new(10, 10, 80, 50), [0b1_0011_0001, 0b1_1111_0000], 0.15, 0.85, 5)
-  args.state.grid ||= Grid.new(10, 10, 80, 50)
-  args.state.procs ||= [args.state.generator.generate]
+  args.state.mapgen ||= map_gen_chain
+  # args.state.grid ||= Grid.new(10, 10, 80, 50)
+  args.state.procs ||= [process_chain(args.state.mapgen)]
   args.state.player_x ||= 0
   args.state.player_y ||= 0
   args.state.next_player_x ||= 0
@@ -72,10 +98,14 @@ def handle_input(args)
     args.state.key_delay = REPEAT_DELAY_FRAMES
   end
 
-  args.state.next_player_x = new_player_x if new_player_x >= 0 && new_player_x < args.state.grid.width
-  args.state.next_player_y = new_player_y if new_player_y >= 0 && new_player_y < args.state.grid.height
+  try_move(args, new_player_x, new_player_y)
 
-  args.state.procs = [args.state.generator.generate] if args.inputs.keyboard.key_down.r
+  args.state.procs = [process_chain(args.state.mapgen)] if args.inputs.keyboard.key_down.r
+end
+
+def try_move(args, new_x, new_y)
+  args.state.next_player_x = new_x if args.state.grid.present?(new_x, new_y)
+  args.state.next_player_y = new_y if args.state.grid.present?(new_x, new_y)
 end
 
 def draw(args)

@@ -13,7 +13,7 @@ class CaMap
   end
 
   def generate
-    fiber = Fiber.new do
+    fiber = Fiber.new do |args|
       map = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
       backbuf = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
 
@@ -23,7 +23,8 @@ class CaMap
         end
       end
 
-      Fiber.yield map
+      args.state.grid = map
+      Fiber.yield
 
       @iters.times do
         ((map.width.div 2) - 1).times do |x|
@@ -39,12 +40,14 @@ class CaMap
         end
 
         map = backbuf
-        Fiber.yield map
+        args.state.grid = map
+        Fiber.yield
       end
 
       caverns = find_caverns(map)
 
-      Fiber.yield map
+      args.state.grid = map
+      Fiber.yield
 
       # TODO: better room connections
       caverns.each_cons(2) do |a, b|
@@ -58,11 +61,10 @@ class CaMap
         render map, path, 2
       end
 
-      map
+      args.state.grid = map
     end
 
-    callback = ->(args, result) { args.state.grid = result }
-    Process.new(fiber, callback, @debug ? 5 : 0)
+    Process.new(fiber, @debug ? 5 : 0)
   end
 
   def find_caverns(map)
