@@ -5,14 +5,6 @@ class MinSpanTree
 
   def initialize; end
 
-  def generate
-    fiber = Fiber.new do |args|
-      run(args)
-    end
-
-    Process.new(fiber)
-  end
-
   def run(args)
     args.state.room_points = args.state.rooms.map(&:sample)
     args.state.adjacency = calc_adjacency(args.state.room_points)

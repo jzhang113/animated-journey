@@ -82,7 +82,7 @@ end
 
 def map_gen_chain
   [].tap do |chain|
-    chain << RandomTiles.new(Rect.new(10, 10, 80, 50), 0.35)
+    chain << RandomTiles.new([10, 10, 80, 50], 0.35)
     chain << CaMap.new([0b1_0011_0001, 0b1_1111_0000], 0.9, 5)
     chain << MapCuller.new(6, MapCuller::ROOM_OP[:overwrite])
     chain << SimpleRooms.new(10..10, 3..8, 3..8)

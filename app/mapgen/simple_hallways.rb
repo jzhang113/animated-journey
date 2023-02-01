@@ -5,22 +5,20 @@ class SimpleHallways
 
   def initialize; end
 
-  def generate
-    fiber = Fiber.new do |args|
-      map = args.state.grid
+  def run(args)
+    map = args.state.grid
 
-      args.state.connections.each do |a, b|
-        ax, ay = args.state.room_points[a]
-        bx, by = args.state.room_points[b]
+    args.state.connections.each do |a, b|
+      ax, ay = args.state.room_points[a]
+      bx, by = args.state.room_points[b]
 
-        path = make_path_horiz(ax, bx, ay)
-        render map, path, 2
+      path = make_path_horiz(ax, bx, ay)
+      render map, path, 2
 
-        path = make_path_vert(ay, by, bx)
-        render map, path, 2
-      end
+      path = make_path_vert(ay, by, bx)
+      render map, path, 2
+
+      Fiber.yield
     end
-
-    Process.new(fiber)
   end
 end

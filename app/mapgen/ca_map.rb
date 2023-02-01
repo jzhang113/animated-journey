@@ -3,36 +3,31 @@
 class CaMap
   include MapHelpers
 
-  def initialize(rules, visit_chance, iters, debug: false)
+  def initialize(rules, visit_chance, iters)
     @rules = rules
     @visit_chance = visit_chance
     @iters = iters
-    @debug = debug
   end
 
-  def generate
-    fiber = Fiber.new do |args|
-      backbuf = Grid.new(args.state.grid.x, args.state.grid.y, args.state.grid.width, args.state.grid.height)
+  def run(args)
+    backbuf = Grid.new(args.state.grid.x, args.state.grid.y, args.state.grid.width, args.state.grid.height)
 
-      @iters.times do
-        ((args.state.grid.width.div 2) - 1).times do |x|
-          ((args.state.grid.height.div 2) - 1).times do |y|
-            next unless rand < @visit_chance
+    @iters.times do
+      ((args.state.grid.width.div 2) - 1).times do |x|
+        ((args.state.grid.height.div 2) - 1).times do |y|
+          next unless rand < @visit_chance
 
-            # Unrolling updates
-            update_cell(args.state.grid, backbuf, 2 * x + 1, 2 * y + 1, 1)
-            update_cell(args.state.grid, backbuf, 2 * x + 2, 2 * y + 1, 1)
-            update_cell(args.state.grid, backbuf, 2 * x + 1, 2 * y + 2, 1)
-            update_cell(args.state.grid, backbuf, 2 * x + 2, 2 * y + 2, 1)
-          end
+          # Unrolling updates
+          update_cell(args.state.grid, backbuf, 2 * x + 1, 2 * y + 1, 1)
+          update_cell(args.state.grid, backbuf, 2 * x + 2, 2 * y + 1, 1)
+          update_cell(args.state.grid, backbuf, 2 * x + 1, 2 * y + 2, 1)
+          update_cell(args.state.grid, backbuf, 2 * x + 2, 2 * y + 2, 1)
         end
-
-        args.state.grid = backbuf
-        Fiber.yield
       end
-    end
 
-    Process.new(fiber, @debug ? 5 : 0)
+      args.state.grid = backbuf
+      Fiber.yield
+    end
   end
 
   def update_cell(map, backbuf, x, y, data)

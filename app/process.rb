@@ -11,9 +11,10 @@ class Process
 
   FRAME_MS_TIME = 10
 
-  def initialize(fiber, delay = 0)
+  def initialize(fiber, delay = 0, callback = nil)
     @fiber = fiber
     @delay = delay
+    @callback = callback
   end
 
   def run(args)
@@ -22,6 +23,8 @@ class Process
     else
       run_for_frametime(args, FRAME_MS_TIME)
     end
+
+    @callback.call(args) unless @callback.nil?
   end
 
   private

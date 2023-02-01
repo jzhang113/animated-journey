@@ -2,25 +2,23 @@
 
 # Create a new Grid of the given dimensions and randomly populate tiles
 class RandomTiles
+  include MapHelpers
+
   def initialize(dims, open_chance)
     @dims = dims
     @open_chance = open_chance
   end
 
-  def generate
-    fiber = Fiber.new do |args|
-      map = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
+  def run(args)
+    map = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
 
-      map.width.times do |x|
-        map.height.times do |y|
-          map.grid[y][x] = 1 if rand < @open_chance
-        end
+    map.width.times do |x|
+      map.height.times do |y|
+        map.grid[y][x] = 1 if rand < @open_chance
       end
-
-      args.state.grid = map
     end
 
-    Process.new(fiber)
+    args.state.grid = map
   end
 end
 
@@ -30,11 +28,7 @@ class EmptyTiles
     @dims = dims
   end
 
-  def generate
-    fiber = Fiber.new do |args|
-      args.state.grid = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
-    end
-
-    Process.new(fiber)
+  def run(args)
+    args.state.grid = Grid.new(@dims.x, @dims.y, @dims.w, @dims.h)
   end
 end

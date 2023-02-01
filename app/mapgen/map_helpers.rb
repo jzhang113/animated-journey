@@ -1,6 +1,19 @@
 # frozen_string_literal: true
 
 module MapHelpers
+  class << self
+    def included(_mod)
+      define_method :generate do
+        fiber = Fiber.new do |args|
+          run(args)
+        end
+
+        cb = ->(args) { render_map(args) }
+        Process.new(fiber, $debug ? 5 : 0, $debug ? cb : nil)
+      end
+    end
+  end
+
   def dist_euclidean(p1, p2)
     dx = p1.x - p2.x
     dy = p1.y - p2.y
