@@ -130,7 +130,8 @@ def handle_input(args)
 end
 
 def try_move(args, new_x, new_y)
-  return unless args.state.grid.present?(new_x, new_y) && new_x != args.state.player_x && new_y != args.state.player_y
+  return unless args.state.grid.present?(new_x, new_y) && (new_x != args.state.player_x || new_y != args.state.player_y)
+
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
   args.state.dijkstra = Pathfinding.dijkstra(args, args.state.player_x, args.state.player_y, args.state.grid)

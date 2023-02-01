@@ -59,7 +59,7 @@ module Pathfinding
         steps += 1
         if steps % 250 == 0
           args.state.dijkstra = [dists, prevs]
-          Fiber.yield
+          # Fiber.yield
         end
       end
 

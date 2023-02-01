@@ -26,6 +26,17 @@ class Grid
     @grid[y][x] = value
   end
 
+  def exits(x, y)
+    dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]]
+    exits = []
+
+    dirs.each do |dx, dy|
+      exits << [dx, dy] if present?(x + dx, y + dy)
+    end
+
+    exits
+  end
+
   def present?(x, y)
     return false unless in_bounds(x, y)
 
