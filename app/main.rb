@@ -204,10 +204,42 @@ def draw(args)
   )
 
   # cursor
+  args.state.last_mp = args.state.mp
   mp = mouse_pos(args)
+  args.state.mp = mp
+
   unless mp.nil?
     args.outputs.solids << [mp.x * grid.tile_size + grid.x, mp.y * grid.tile_size + grid.y, 12, 12, 255, 255, 255]
     args.outputs.labels << [800, 660, "The tile is #{args.state.dijkstra[0][mp.y][mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
+
+    if mp != args.state.last_mp && grid.present?(mp.x, mp.y)
+      args.state.stuff = Pathfinding.a_star(args, [args.state.player_x, args.state.player_y], mp, args.state.grid)
+
+      Pathfinding.reconstruct_path(args.state.stuff, [args.state.player_x, args.state.player_y], mp, args.state.grid.width).each do |path_x, path_y|
+        args.outputs[:path].solids << {
+          x: path_x * grid.tile_size,
+          y: path_y * grid.tile_size,
+          w: grid.tile_size,
+          h: grid.tile_size,
+          r: 255,
+          g: 255,
+          b: 255,
+          a: 120
+        }
+      end
+    end
+
+    args.outputs.sprites << {
+      x: grid.x,
+      y: grid.y,
+      w: screen_w,
+      h: screen_h,
+      path: :path,
+      source_x: 0,
+      source_y: 0,
+      source_w: grid.tile_size * grid.width,
+      source_h: grid.tile_size * grid.height,
+    } if grid.present?(mp.x, mp.y)
   end
 end
 

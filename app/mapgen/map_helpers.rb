@@ -20,6 +20,12 @@ module MapHelpers
     dx * dx + dy * dy
   end
 
+  def dist_manhattan(p1, p2)
+    dx = p1.x - p2.x
+    dy = p1.y - p2.y
+    dx.abs + dy.abs
+  end
+
   def make_path_horiz(x1, x2, y)
     xa, xb = [x1, x2].minmax
 
@@ -55,7 +61,7 @@ module MapHelpers
         125,
         t == 1 ? 255 : 125,
         255,
-        t % 10
+        $debug ? t % 10 : '.'
       )
     end
   end

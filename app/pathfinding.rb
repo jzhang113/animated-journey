@@ -11,6 +11,8 @@ module Pathfinding
   end
 
   class << self
+    include MapHelpers
+
     def to_idx(x, y, w)
       w * y + x
     end
@@ -82,6 +84,52 @@ module Pathfinding
       end
 
       path.reverse
+    end
+
+    def a_star(args, start, goal, map)
+      # rows = map.height
+      cols = map.width
+      goal_idx = to_idx(goal.x, goal.y, cols)
+
+      open = MinHeap.new
+      open.insert(0, to_idx(start.x, start.y, cols))
+      closed = []
+      prevs = {}
+
+      until open.empty?
+        cost, idx = open.extract
+        return prevs if idx == goal_idx
+
+        closed << idx
+        px, py = from_idx(idx, cols)
+
+        map.exits(px, py).each do |dx, dy|
+          next_idx = to_idx(px + dx, py + dy, cols)
+          next_cost = cost + 1 # support alternate movementcost(current, neighbor)
+
+          if !open.include?(next_idx) && !closed.include?(next_idx)
+            priority = next_cost + dist_euclidean([px + dx, py + dy], goal)
+            open.insert(priority, next_idx)
+            prevs[next_idx] = idx
+          end
+        end
+      end
+
+      prevs
+    end
+
+    def reconstruct_path(path, start, goal, cols)
+      pp = []
+
+      start_idx = to_idx(start.x, start.y, cols)
+      prev_idx = to_idx(goal.x, goal.y, cols)
+
+      until prev_idx == start_idx do
+        pp << from_idx(prev_idx, cols)
+        prev_idx = path[prev_idx]
+      end
+
+      pp.reverse
     end
   end
 end

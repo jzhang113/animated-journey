@@ -10,7 +10,7 @@ class MinHeap
 
   # Add an item containing [priority, data] to the heap
   def insert(priority, data)
-    @heap.push([priority, data].dup)
+    @heap.push([priority, data])
     @key_map[data] = @heap.length - 1
     up_heap(@heap.length - 1)
   end
@@ -19,13 +19,13 @@ class MinHeap
   def extract
     return nil if @heap.empty?
 
-    root = @heap[0].dup
+    root = @heap[0]
     @key_map.delete(root[1])
     @key_map.rehash
 
     if @heap.length > 1
       # Replace the root with the last element and down_heap to restore the heap property
-      @heap[0] = @heap.pop.dup
+      @heap[0] = @heap.pop
       @key_map[@heap[0][1]] = 0
       down_heap(0)
     else
@@ -42,8 +42,13 @@ class MinHeap
     return if idx.nil?
     raise 'decrease_key should not set the priority to a higher value' if new_val > @heap[idx][0]
 
-    @heap[idx] = [new_val, data].dup
+    @heap[idx] = [new_val, data]
     up_heap(idx)
+  end
+
+  # Check if an element was stored in the heap
+  def include?(data)
+    @key_map.key?(data)
   end
 
   def empty?
@@ -70,8 +75,8 @@ class MinHeap
   # Swap the position of two items in the heap
   def swap(i, j)
     @heap[i], @heap[j] = @heap[j], @heap[i]
-    @key_map.store(@heap[i][1].dup, i)
-    @key_map.store(@heap[j][1].dup, j)
+    @key_map.store(@heap[i][1], i)
+    @key_map.store(@heap[j][1], j)
 
     # raise "Heap and keymap out of sync: #{@heap.length} #{@key_map.length}" if @heap.length != @key_map.length
   end
