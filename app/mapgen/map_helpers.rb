@@ -20,4 +20,24 @@ module MapHelpers
       end
     end
   end
+
+  def render_map(args)
+    map = args.state.grid
+
+    map.grid.map_2d do |row, col, t|
+      next if t.nil?
+
+      args.outputs[:map].sprites << tile_extended(
+        col * map.tile_size,
+        row * map.tile_size,
+        map.tile_size,
+        map.tile_size,
+        t == 2 ? 255 : 125,
+        125,
+        t == 1 ? 255 : 125,
+        255,
+        t % 10
+      )
+    end
+  end
 end

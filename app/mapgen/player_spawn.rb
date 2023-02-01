@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class PlayerSpawn
+  include MapHelpers
+
+  def initialize; end
+
   def generate
     fiber = Fiber.new do |args|
       found = false
@@ -18,6 +22,8 @@ class PlayerSpawn
 
         found = true
       end
+
+      render_map(args)
     end
 
     Process.new(fiber)

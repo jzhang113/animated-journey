@@ -1,5 +1,9 @@
+# frozen_string_literal: true
+
 def sprite_lookup
   {
+    '#' => [2, 3],
+    '.' => [2, 14],
     0 => [3, 0],
     1 => [3, 1],
     2 => [3, 2],
@@ -83,9 +87,9 @@ def member_name_as_code raw_member_name
   end
 end
 
-def tile x, y, tile_row_column_or_key
-  tile_extended x, y, DESTINATION_TILE_SIZE, DESTINATION_TILE_SIZE, TILE_R, TILE_G, TILE_B, TILE_A, tile_row_column_or_key
-end
+# def tile x, y, tile_row_column_or_key
+#   tile_extended x, y, DESTINATION_TILE_SIZE, DESTINATION_TILE_SIZE, TILE_R, TILE_G, TILE_B, TILE_A, tile_row_column_or_key
+# end
 
 def tile_extended x, y, w, h, r, g, b, a, tile_row_column_or_key
   row_or_key, column = tile_row_column_or_key

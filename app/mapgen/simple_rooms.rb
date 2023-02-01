@@ -20,7 +20,7 @@ class SimpleRooms
         next if overlaps?(args.state.grid, room)
 
         args.state.rooms << room
-        render args.state.grid, room, 3
+        render args.state.grid, room, 1
       end
     end
 

@@ -6,7 +6,6 @@ class MinHeap
   def initialize
     @heap = []
     @key_map = {}
-	@key_map.compare_by_identity
   end
 
   # Add an item containing [priority, data] to the heap
@@ -22,6 +21,7 @@ class MinHeap
 
     root = @heap[0].dup
     @key_map.delete(root[1])
+    @key_map.rehash
 
     if @heap.length > 1
       # Replace the root with the last element and down_heap to restore the heap property
@@ -44,8 +44,6 @@ class MinHeap
 
     @heap[idx] = [new_val, data].dup
     up_heap(idx)
-
-    raise "Heap and keymap out of sync: #{@heap.length} #{@key_map.length}" if @heap.length != @key_map.length
   end
 
   def empty?
@@ -71,28 +69,16 @@ class MinHeap
 
   # Swap the position of two items in the heap
   def swap(i, j)
-    # @heap[i], @heap[j] = @heap[j], @heap[i]
-    tmp = @heap[i].dup
-    @heap[i] = @heap[j].dup
-    @heap[j] = tmp
-
-putz @heap[i][1].object_id
-putz @key_map.keys[14].object_id
-putz @heap[i][1].eql? @key_map.keys[14]
-
+    @heap[i], @heap[j] = @heap[j], @heap[i]
     @key_map.store(@heap[i][1].dup, i)
     @key_map.store(@heap[j][1].dup, j)
 
-putz @key_map.keys.map(&:object_id)
-
+    # raise "Heap and keymap out of sync: #{@heap.length} #{@key_map.length}" if @heap.length != @key_map.length
   end
 
   # Swap a node up if it is smaller than its parent
   def up_heap(idx)
     loop do
-      putz "Heap: #{@heap}"
-      putz "Keymap: #{@key_map}"
-
       # Nothing to do if its already the root
       return if idx.zero?
 
@@ -102,7 +88,6 @@ putz @key_map.keys.map(&:object_id)
       return if @heap[parent][0] < @heap[idx][0]
 
       # Otherwise, swap with the parent to restore the heap property and check again
-      putz "swapping #{idx} and #{parent}"
       swap(idx, parent)
       idx = parent
     end

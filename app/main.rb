@@ -34,6 +34,7 @@ require 'app/sprite_lookup.rb'
 
 require 'app/heap.rb'
 require 'app/pathfinding.rb'
+
 REPEAT_DELAY_FRAMES = 4
 
 def tick(args)
@@ -86,7 +87,7 @@ def map_gen_chain
     chain << MapCuller.new(6, MapCuller::ROOM_OP[:overwrite])
     chain << SimpleRooms.new(10..10, 3..8, 3..8)
     chain << MinSpanTree.new
-    chain << Hallways.new
+    chain << SimpleHallways.new
     chain << PlayerSpawn.new
   end
 end
@@ -129,7 +130,7 @@ def handle_input(args)
 end
 
 def try_move(args, new_x, new_y)
-  return unless args.state.grid.present?(new_x, new_y) && new_x != args.state.grid.player_x && new_y != args.state.grid.player_y
+  return unless args.state.grid.present?(new_x, new_y) && new_x != args.state.player_x && new_y != args.state.player_y
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
   args.state.dijkstra = Pathfinding.dijkstra(args, args.state.player_x, args.state.player_y, args.state.grid)
