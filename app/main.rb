@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+$debug = false
+
 require 'app/benchmark.rb'
 require 'app/process.rb'
 require 'app/random.rb'
@@ -23,10 +25,15 @@ require 'app/mapgen/map_helpers.rb'
 require 'app/mapgen/player_spawn.rb'
 require 'app/mapgen/ca_map.rb'
 require 'app/mapgen/map_culler.rb'
+require 'app/mapgen/min_span_tree.rb'
 require 'app/mapgen/simple_hallways.rb'
 require 'app/mapgen/random_tiles.rb'
 require 'app/mapgen/simple_rooms.rb'
 
+require 'app/sprite_lookup.rb'
+
+require 'app/heap.rb'
+require 'app/pathfinding.rb'
 REPEAT_DELAY_FRAMES = 4
 
 def tick(args)
@@ -78,12 +85,15 @@ def map_gen_chain
     chain << CaMap.new([0b1_0011_0001, 0b1_1111_0000], 0.9, 5)
     chain << MapCuller.new(6, MapCuller::ROOM_OP[:overwrite])
     chain << SimpleRooms.new(10..10, 3..8, 3..8)
-    chain << SimpleHallways.new
+    chain << MinSpanTree.new
+    chain << Hallways.new
     chain << PlayerSpawn.new
   end
 end
 
 def initialize(args)
+  args.outputs.background_color = [0, 0, 0]
+
   args.state.mapgen ||= map_gen_chain
   # args.state.grid ||= Grid.new(10, 10, 80, 50)
   args.state.procs ||= [process_chain(args.state.mapgen)]
@@ -92,6 +102,7 @@ def initialize(args)
   args.state.next_player_x ||= 0
   args.state.next_player_y ||= 0
   args.state.key_delay ||= REPEAT_DELAY_FRAMES
+  args.state.dijkstra ||= []
 end
 
 def handle_input(args)
@@ -118,38 +129,54 @@ def handle_input(args)
 end
 
 def try_move(args, new_x, new_y)
-  args.state.next_player_x = new_x if args.state.grid.present?(new_x, new_y)
-  args.state.next_player_y = new_y if args.state.grid.present?(new_x, new_y)
+  return unless args.state.grid.present?(new_x, new_y) && new_x != args.state.grid.player_x && new_y != args.state.grid.player_y
+  args.state.next_player_x = new_x
+  args.state.next_player_y = new_y
+  args.state.dijkstra = Pathfinding.dijkstra(args, args.state.player_x, args.state.player_y, args.state.grid)
 end
 
 def draw(args)
   grid = args.state.grid
 
-  args.outputs.labels  << [800, 680, "You are at #{args.state.player_x}, #{args.state.player_y} and the grid is #{grid[args.state.player_x, args.state.player_y]}"]
+  args.outputs.labels << [800, 680, "You are at #{args.state.player_x}, #{args.state.player_y} and the grid is #{grid[args.state.player_x, args.state.player_y]}", 255, 255, 255]
+
+  screen_w = grid.tile_size * grid.width
+  screen_h = grid.tile_size * grid.height
 
   args.outputs.borders << {
     x: grid.x,
     y: grid.y,
-    w: grid.tile_size * grid.width,
-    h: grid.tile_size * grid.height
+    w: screen_w,
+    h: screen_h,
+    r: 255,
+    g: 255,
+    b: 255
   }
 
   # statics
-  grid.each_with_index do |row_arr, row|
-    row_arr.each_with_index do |tile, col|
-      next if tile.nil?
+  # args.outputs.sprites << {
+  #   x: grid.x,
+  #   y: grid.y,
+  #   w: screen_w,
+  #   h: screen_h,
+  #   path: :bg_map,
+  #   source_x: 0,
+  #   source_y: 0,
+  #   source_w: grid.tile_size * grid.width,
+  #   source_h: grid.tile_size * grid.height,
+  # }
 
-      args.outputs.solids << {
-        x: col * grid.tile_size + grid.x,
-        y: row * grid.tile_size + grid.y,
-        w: grid.tile_size,
-        h: grid.tile_size,
-        r: tile == 2 ? 200 : 0,
-        g: tile == 3 ? 200 : 0,
-        b: tile == 1 ? 200 : 0
-      }
-    end
-  end
+  args.outputs.sprites << {
+    x: grid.x,
+    y: grid.y,
+    w: screen_w,
+    h: screen_h,
+    path: :map,
+    source_x: 0,
+    source_y: 0,
+    source_w: grid.tile_size * grid.width,
+    source_h: grid.tile_size * grid.height,
+  }
 
   # player
   spline = [
@@ -161,10 +188,33 @@ def draw(args)
   fractional_y = frac * (args.state.next_player_y - args.state.player_y)
   # putz "#{args.state.key_delay} #{fractional_x} #{fractional_y}"
 
-  args.outputs.solids << {
-    x: (args.state.player_x + fractional_x) * grid.tile_size + grid.x,
-    y: (args.state.player_y + fractional_y) * grid.tile_size + grid.y,
-    w: grid.tile_size,
-    h: grid.tile_size
-  }
+  args.outputs.sprites << tile_extended(
+    (args.state.player_x + fractional_x) * grid.tile_size + grid.x,
+    (args.state.player_y + fractional_y) * grid.tile_size + grid.y,
+    grid.tile_size,
+    grid.tile_size,
+    25,
+    175,
+    25,
+    255,
+    '@'
+  )
+
+  # cursor
+  mp = mouse_pos(args)
+  unless mp.nil?
+    args.outputs.solids << [mp.x * grid.tile_size + grid.x, mp.y * grid.tile_size + grid.y, 12, 12, 255, 255, 255]
+    args.outputs.labels << [800, 660, "The tile is #{args.state.dijkstra[0][mp.y][mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
+  end
+end
+
+# Convert the mouse position to a tile on the grid if its in bounds
+def mouse_pos(args)
+  grid = args.state.grid
+  mouse_x = args.inputs.mouse.x
+  mouse_x = ((mouse_x - grid.x) / grid.tile_size - 0.5).round
+  mouse_y = args.inputs.mouse.y
+  mouse_y = ((mouse_y - grid.y) / grid.tile_size - 0.5).round
+
+  [mouse_x, mouse_y] if grid.in_bounds(mouse_x, mouse_y)
 end
