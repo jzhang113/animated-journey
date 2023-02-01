@@ -3,17 +3,15 @@
 class SimpleHallways
   include MapHelpers
 
-  def initialize
-  end
+  def initialize; end
 
   def generate
     fiber = Fiber.new do |args|
       map = args.state.grid
 
-      # TODO: better room connections
-      args.state.rooms.each_cons(2) do |a, b|
-        ax, ay = a.sample
-        bx, by = b.sample
+      args.state.connections.each do |a, b|
+        ax, ay = args.state.room_points[a]
+        bx, by = args.state.room_points[b]
 
         path = make_path_horiz(ax, bx, ay)
         render map, path, 2

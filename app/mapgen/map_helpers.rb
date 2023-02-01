@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 module MapHelpers
+  def dist_euclidean(p1, p2)
+    dx = p1.x - p2.x
+    dy = p1.y - p2.y
+    dx * dx + dy * dy
+  end
+
   def make_path_horiz(x1, x2, y)
     xa, xb = [x1, x2].minmax
 
