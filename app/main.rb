@@ -59,7 +59,7 @@ end
 def run_procs(args)
   # TODO: this needs to handle job scheduling, otherwise a tick can become arbitrarily slow
   # also under the current system, each step takes at least a tick, even if it finishes faster
-  args.state.procs.each do |chain|
+  args.state.procs.each do |_, chain|
     chain.current += 1 unless chain.steps[chain.current].fiber.alive?
 
     if chain.current >= chain.steps.length
@@ -69,7 +69,7 @@ def run_procs(args)
     end
   end
 
-  args.state.procs.reject!(&:done)
+  args.state.procs.reject! { |_, chain| chain.done }
 end
 
 def process_chain(constructors)
@@ -97,7 +97,8 @@ def initialize(args)
 
   args.state.mapgen ||= map_gen_chain
   # args.state.grid ||= Grid.new(10, 10, 80, 50)
-  args.state.procs ||= [process_chain(args.state.mapgen)]
+  args.state.procs ||= { mapgen: process_chain(args.state.mapgen) }
+
   args.state.player_x ||= 0
   args.state.player_y ||= 0
   args.state.next_player_x ||= 0
@@ -126,7 +127,7 @@ def handle_input(args)
 
   try_move(args, new_player_x, new_player_y)
 
-  args.state.procs = [process_chain(args.state.mapgen)] if args.inputs.keyboard.key_down.r
+  args.state.procs[:mapgen] = process_chain(args.state.mapgen) if args.inputs.keyboard.key_down.r
 end
 
 def try_move(args, new_x, new_y)
@@ -134,7 +135,7 @@ def try_move(args, new_x, new_y)
 
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
-  args.state.dijkstra = Pathfinding.dijkstra(args, args.state.player_x, args.state.player_y, args.state.grid)
+  args.state.procs[:dijkstra] = process_chain([Pathfinding::Dijkstra])
 end
 
 def draw(args)

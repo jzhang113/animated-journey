@@ -2,7 +2,7 @@
 
 # Pathfinding utilities
 module Pathfinding
-  class Rf
+  class Dijkstra
     def self.generate
       Process.new(Fiber.new do |args|
         Pathfinding.dijkstra(args, args.state.player_x, args.state.player_y, args.state.grid)
@@ -57,9 +57,9 @@ module Pathfinding
         end
 
         steps += 1
-        if steps % 250 == 0
+        if steps % 200 == 0
           args.state.dijkstra = [dists, prevs]
-          # Fiber.yield
+          Fiber.yield
         end
       end
 
