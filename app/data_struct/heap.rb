@@ -5,13 +5,11 @@
 class MinHeap
   def initialize
     @heap = []
-    @key_map = {}
   end
 
   # Add an item containing [priority, data] to the heap
   def insert(priority, data)
     @heap.push([priority, data])
-    @key_map[data] = @heap.length - 1
     up_heap(@heap.length - 1)
   end
 
@@ -20,13 +18,10 @@ class MinHeap
     return nil if @heap.empty?
 
     root = @heap[0]
-    @key_map.delete(root[1])
-    @key_map.rehash
 
     if @heap.length > 1
       # Replace the root with the last element and down_heap to restore the heap property
       @heap[0] = @heap.pop
-      @key_map[@heap[0][1]] = 0
       down_heap(0)
     else
       @heap.pop
@@ -35,65 +30,23 @@ class MinHeap
     root
   end
 
-  # Update the priority of an element in the heap to a lower value
-  def decrease_key(data, new_val)
-    idx = @key_map[data]
-
-    return if idx.nil?
-    raise 'decrease_key should not set the priority to a higher value' if new_val > @heap[idx][0]
-
-    @heap[idx] = [new_val, data]
-    up_heap(idx)
-  end
-
-  # Check if an element was stored in the heap
-  def include?(data)
-    @key_map.key?(data)
-  end
-
   def empty?
     @heap.empty?
   end
 
   private
 
-  # Index of the left child of a given node in the heap
-  def left(idx)
-    2 * idx + 1
-  end
-
-  # Index of the right child of a given node in the heap
-  def right(idx)
-    2 * idx + 2
-  end
-
-  # Index of the parent of a given node in the heap
-  def parent(idx)
-    (idx - 1) >> 1
-  end
-
-  # Swap the position of two items in the heap
-  def swap(i, j)
-    @heap[i], @heap[j] = @heap[j], @heap[i]
-    @key_map.store(@heap[i][1], i)
-    @key_map.store(@heap[j][1], j)
-
-    # raise "Heap and keymap out of sync: #{@heap.length} #{@key_map.length}" if @heap.length != @key_map.length
-  end
-
   # Swap a node up if it is smaller than its parent
   def up_heap(idx)
-    loop do
-      # Nothing to do if its already the root
-      return if idx.zero?
-
-      parent = parent(idx)
+    # Stop if its the root
+    until idx.zero?
+      parent = (idx - 1) >> 1
 
       # If the parent is smaller than the node, the heap property is satisfied
       return if @heap[parent][0] < @heap[idx][0]
 
       # Otherwise, swap with the parent to restore the heap property and check again
-      swap(idx, parent)
+      @heap[idx], @heap[parent] = @heap[parent], @heap[idx]
       idx = parent
     end
   end
@@ -101,8 +54,8 @@ class MinHeap
   # Swap a node down if it is larger than its children
   def down_heap(idx)
     loop do
-      left = left(idx)
-      right = right(idx)
+      left = 2 * idx + 1
+      right = 2 * idx + 2
       smallest = idx
 
       smallest = left if left < @heap.length && @heap[left][0] < @heap[smallest][0]
@@ -112,7 +65,7 @@ class MinHeap
       return if smallest == idx
 
       # Otherwise, swap with the smaller child to restore the heap property and check again
-      swap(idx, smallest)
+      @heap[idx], @heap[smallest] = @heap[smallest], @heap[idx]
       idx = smallest
     end
   end

@@ -2,6 +2,8 @@
 
 $debug = false
 
+require 'app/data_struct/heap.rb'
+
 require 'app/benchmark.rb'
 require 'app/process.rb'
 require 'app/random.rb'
@@ -32,7 +34,6 @@ require 'app/mapgen/simple_rooms.rb'
 
 require 'app/sprite_lookup.rb'
 
-require 'app/heap.rb'
 require 'app/pathfinding.rb'
 
 REPEAT_DELAY_FRAMES = 4
@@ -212,7 +213,7 @@ def draw(args)
 
   unless mp.nil?
     args.outputs.solids << [mp.x * grid.tile_size + grid.x, mp.y * grid.tile_size + grid.y, 12, 12, 255, 255, 255]
-    args.outputs.labels << [800, 660, "The tile is #{args.state.dijkstra[0][mp.y][mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
+    args.outputs.labels << [800, 660, "The mouse is at #{mp.x}, #{mp.y} with #{args.state.dijkstra[0][mp.y * 80 + mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
 
     if mp != args.state.last_mp && grid.present?(mp.x, mp.y)
       astar = Pathfinding.a_star(args, [args.state.player_x, args.state.player_y], mp, args.state.grid)

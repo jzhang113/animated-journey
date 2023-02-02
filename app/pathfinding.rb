@@ -27,19 +27,14 @@ module Pathfinding
     # prevs is an array of cell references each pointing one step back to the start
     def dijkstra(args, start_x, start_y, map)
       queue = MinHeap.new
-      rows = map.height
       cols = map.width
 
-      dists = Array.new(rows) { Array.new(cols, 1_000_000) }
-      prevs = Array.new(rows) { Array.new(cols) }
-      dists[start_y][start_x] = 0
+      dists = {}
+      prevs = {}
+      start_idx = to_idx(start_x, start_y, cols)
+      dists[start_idx] = 0
 
-      map.each_with_index do |row, y|
-        row.each_with_index do |_, x|
-          queue.insert(dists[y][x], to_idx(x, y, cols)) if map.present?(x, y)
-        end
-      end
-
+      queue.insert 0, start_idx
       steps = 0
 
       until queue.empty?
@@ -50,12 +45,12 @@ module Pathfinding
           new_idx = to_idx(px + dx, py + dy, cols)
           cost = prev_cost + 1
 
-          next unless cost < dists[py + dy][px + dx]
+          if !dists.include?(new_idx) || cost < dists[new_idx]
+            dists[new_idx] = cost
+            prevs[new_idx] = prev_idx
 
-          dists[py + dy][px + dx] = cost
-          prevs[py + dy][px + dx] = prev_idx
-
-          queue.decrease_key(new_idx, cost)
+            queue.insert(cost, new_idx)
+          end
         end
 
         steps += 1
@@ -68,52 +63,33 @@ module Pathfinding
       args.state.dijkstra = [dists, prevs]
     end
 
-    # prevs should be the result of a previous dijkstra call or another similar method that returns an array of steps from [start_x, start_y]
-    # returns a list of cells on the path, including the start and end
-    # returns nil if there is no path
-    def path(start_x, start_y, end_x, end_y, prevs)
-      path = [[end_x, end_y]]
-      curr_x = end_x
-      curr_y = end_y
-
-      until curr_x == start_x && curr_y == start_y
-        return nil if prevs[curr_y][curr_x].nil?
-
-        curr_x, curr_y = prevs[curr_y][curr_x]
-        path << [curr_x, curr_y]
-      end
-
-      path.reverse
-    end
-
     def a_star(args, start, goal, map)
-      # rows = map.height
       cols = map.width
       goal_idx = to_idx(goal.x, goal.y, cols)
 
       open = MinHeap.new
       open.insert(0, to_idx(start.x, start.y, cols))
-      closed = []
       prevs = {}
-      costs = { to_idx(start.x, start.y, cols) => 0 }
+      dists = { to_idx(start.x, start.y, cols) => 0 }
 
       until open.empty?
         _cost, idx = open.extract
-        return [costs, prevs] if idx == goal_idx
+        return [dists, prevs] if idx == goal_idx
 
-        closed << idx
         px, py = from_idx(idx, cols)
 
         map.exits(px, py).each do |dx, dy|
           next_idx = to_idx(px + dx, py + dy, cols)
-          next_cost = costs[idx] + 1 # support alternate movementcost(current, neighbor)
+          next_cost = dists[idx] + 1 # support alternate movementcost(current, neighbor)
 
-          if !costs.include?(next_idx) || next_cost < costs[next_idx]
+          if !dists.include?(next_idx) || next_cost < dists[next_idx]
+            # Hack for more "diagonal" paths
+            # This creates a checkerboard of (slight) directional preferences, so the shortest path will prefer to alternate directions
             nudge = 0
             nudge = 1 if (px + py) % 2 == 0 and dx == 0
             nudge = 1 if (px + py) % 2 == 1 and dy == 0
 
-            costs[next_idx] = next_cost
+            dists[next_idx] = next_cost
             priority = next_cost + 1.001 * dist_manhattan([px + dx, py + dy], goal) + 0.001 * nudge
             open.insert(priority, next_idx)
             prevs[next_idx] = idx
@@ -121,21 +97,24 @@ module Pathfinding
         end
       end
 
-      [costs, prevs]
+      [dists, prevs]
     end
 
-    def reconstruct_path(path, start, goal, cols)
-      pp = []
+    # prevs should be the result of a previous dijkstra call or another similar method that returns an array of steps from [start_x, start_y]
+    # returns a list of cells on the path, including the start and end
+    # returns nil if there is no path
+    def reconstruct_path(prevs, start, goal, cols)
+      path = []
 
       start_idx = to_idx(start.x, start.y, cols)
       prev_idx = to_idx(goal.x, goal.y, cols)
 
-      until prev_idx == start_idx do
-        pp << from_idx(prev_idx, cols)
-        prev_idx = path[prev_idx]
+      until prev_idx == start_idx
+        path << from_idx(prev_idx, cols)
+        prev_idx = prevs[prev_idx]
       end
 
-      pp.reverse
+      path.reverse
     end
   end
 end
