@@ -204,6 +204,8 @@ def draw(args)
   )
 
   # cursor
+  args.state.mp ||= [0, 0]
+  args.state.last_mp ||= [0, 0]
   args.state.last_mp = args.state.mp
   mp = mouse_pos(args)
   args.state.mp = mp
@@ -213,9 +215,23 @@ def draw(args)
     args.outputs.labels << [800, 660, "The tile is #{args.state.dijkstra[0][mp.y][mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
 
     if mp != args.state.last_mp && grid.present?(mp.x, mp.y)
-      args.state.stuff = Pathfinding.a_star(args, [args.state.player_x, args.state.player_y], mp, args.state.grid)
+      astar = Pathfinding.a_star(args, [args.state.player_x, args.state.player_y], mp, args.state.grid)
+      astar[1].each do |k, v|
+        px, py = [k % 80, k.idiv(80)]
 
-      Pathfinding.reconstruct_path(args.state.stuff, [args.state.player_x, args.state.player_y], mp, args.state.grid.width).each do |path_x, path_y|
+        args.outputs[:path].solids << {
+          x: px * grid.tile_size,
+          y: py * grid.tile_size,
+          w: grid.tile_size,
+          h: grid.tile_size,
+          r: 255,
+          g: 5,
+          b: 5,
+          a: 120
+        }
+      end
+
+      Pathfinding.reconstruct_path(astar[1], [args.state.player_x, args.state.player_y], mp, args.state.grid.width).each do |path_x, path_y|
         args.outputs[:path].solids << {
           x: path_x * grid.tile_size,
           y: path_y * grid.tile_size,

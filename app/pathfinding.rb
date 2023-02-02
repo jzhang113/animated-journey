@@ -95,27 +95,33 @@ module Pathfinding
       open.insert(0, to_idx(start.x, start.y, cols))
       closed = []
       prevs = {}
+      costs = { to_idx(start.x, start.y, cols) => 0 }
 
       until open.empty?
-        cost, idx = open.extract
-        return prevs if idx == goal_idx
+        _cost, idx = open.extract
+        return [costs, prevs] if idx == goal_idx
 
         closed << idx
         px, py = from_idx(idx, cols)
 
         map.exits(px, py).each do |dx, dy|
           next_idx = to_idx(px + dx, py + dy, cols)
-          next_cost = cost + 1 # support alternate movementcost(current, neighbor)
+          next_cost = costs[idx] + 1 # support alternate movementcost(current, neighbor)
 
-          if !open.include?(next_idx) && !closed.include?(next_idx)
-            priority = next_cost + dist_euclidean([px + dx, py + dy], goal)
+          if !costs.include?(next_idx) || next_cost < costs[next_idx]
+            nudge = 0
+            nudge = 1 if (px + py) % 2 == 0 and dx == 0
+            nudge = 1 if (px + py) % 2 == 1 and dy == 0
+
+            costs[next_idx] = next_cost
+            priority = next_cost + 1.001 * dist_manhattan([px + dx, py + dy], goal) + 0.001 * nudge
             open.insert(priority, next_idx)
             prevs[next_idx] = idx
           end
         end
       end
 
-      prevs
+      [costs, prevs]
     end
 
     def reconstruct_path(path, start, goal, cols)
