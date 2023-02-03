@@ -53,14 +53,47 @@ module Pathfinding
           end
         end
 
-        steps += 1
-        if steps % 200 == 0
-          args.state.dijkstra = [dists, prevs]
-          Fiber.yield
-        end
+        # steps += 1
+        # if steps % 200 == 0
+        #   args.state.dijkstra = [dists, prevs]
+        #   Fiber.yield
+        # end
       end
 
       args.state.dijkstra = [dists, prevs]
+    end
+
+    def bfs(start, map)
+      start_idx = to_idx(start.x, start.y, map.width)
+
+      currentfrontier = []
+      nextfrontier = []
+      currentfrontier << start_idx
+
+      reached = {}
+      prevs = {}
+      reached[start_idx] = true
+
+      until currentfrontier.empty?
+        currentfrontier.each do |idx|
+          px, py = from_idx(idx, map.width)
+
+          map.exits(px, py).each do |dx, dy|
+            next_idx = to_idx(px + dx, py + dy, map.width)
+
+            if !reached.include?(next_idx)
+              reached[next_idx] = true
+              prevs[next_idx] = idx
+              nextfrontier << next_idx
+            end
+          end
+        end
+
+        currentfrontier, nextfrontier = nextfrontier, currentfrontier
+        nextfrontier = []
+      end
+
+      [reached, prevs]
     end
 
     def a_star(args, start, goal, map)
