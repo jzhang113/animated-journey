@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-$debug = false
+$debug = { show_mapgen: false, reveal_map: false }
 
 require 'app/data_struct/heap.rb'
 
@@ -35,6 +35,8 @@ require 'app/mapgen/simple_rooms.rb'
 require 'app/sprite_lookup.rb'
 
 require 'app/pathfinding.rb'
+
+require 'app/fov.rb'
 
 REPEAT_DELAY_FRAMES = 4
 
@@ -94,7 +96,7 @@ def map_gen_chain
 end
 
 def initialize(args)
-  args.outputs.background_color = [0, 0, 0]
+  # args.outputs.background_color = [0, 0, 0]
 
   args.state.mapgen ||= map_gen_chain
   # args.state.grid ||= Grid.new(10, 10, 80, 50)
@@ -106,6 +108,7 @@ def initialize(args)
   args.state.next_player_y ||= 0
   args.state.key_delay ||= REPEAT_DELAY_FRAMES
   args.state.dijkstra ||= []
+  args.state.fov ||= []
 end
 
 def handle_input(args)
@@ -137,12 +140,14 @@ def try_move(args, new_x, new_y)
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
   args.state.procs[:dijkstra] = process_chain([Pathfinding::Dijkstra])
+  args.state.fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 5)
+  Fov.render(args)
 end
 
 def draw(args)
   grid = args.state.grid
 
-  args.outputs.labels << [800, 680, "You are at #{args.state.player_x}, #{args.state.player_y} and the grid is #{grid[args.state.player_x, args.state.player_y]}", 255, 255, 255]
+  args.outputs.labels << [800, 680, "You are at #{args.state.player_x}, #{args.state.player_y} and the grid is #{grid[args.state.player_x, args.state.player_y]}"]
 
   screen_w = grid.tile_size * grid.width
   screen_h = grid.tile_size * grid.height
@@ -170,19 +175,7 @@ def draw(args)
   #   source_h: grid.tile_size * grid.height,
   # }
 
-  args.outputs.sprites << {
-    x: grid.x,
-    y: grid.y,
-    w: screen_w,
-    h: screen_h,
-    path: :map,
-    source_x: 0,
-    source_y: 0,
-    source_w: grid.tile_size * grid.width,
-    source_h: grid.tile_size * grid.height,
-  }
-
-  # player
+  # fractional camera motion
   spline = [
     [0.0, 0.75, 0.85, 1.0]
   ]
@@ -190,8 +183,26 @@ def draw(args)
                                  REPEAT_DELAY_FRAMES, spline
   fractional_x = frac * (args.state.next_player_x - args.state.player_x)
   fractional_y = frac * (args.state.next_player_y - args.state.player_y)
-  # putz "#{args.state.key_delay} #{fractional_x} #{fractional_y}"
 
+  # merge fov and map
+  args.outputs[:fov_map].sprites << {
+    x: 0, y: 0, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :fov
+  }
+  args.outputs[:fov_map].sprites << {
+    x: 0, y: 0, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :map,
+    blendmode_enum: 4
+  }
+  args.outputs.sprites << {
+    x: grid.x, y: grid.y, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :fov_map
+  }
+
+  # player
   args.outputs.sprites << tile_extended(
     (args.state.player_x + fractional_x) * grid.tile_size + grid.x,
     (args.state.player_y + fractional_y) * grid.tile_size + grid.y,
@@ -212,8 +223,8 @@ def draw(args)
   args.state.mp = mp
 
   unless mp.nil?
-    args.outputs.solids << [mp.x * grid.tile_size + grid.x, mp.y * grid.tile_size + grid.y, 12, 12, 255, 255, 255]
-    args.outputs.labels << [800, 660, "The mouse is at #{mp.x}, #{mp.y} with #{args.state.dijkstra[0][mp.y * 80 + mp.x]}", 255, 255, 255] unless args.state.dijkstra[0].nil?
+    args.outputs.solids << [mp.x * grid.tile_size + grid.x, mp.y * grid.tile_size + grid.y, 12, 12]
+    args.outputs.labels << [800, 660, "The mouse is at #{mp.x}, #{mp.y} with #{args.state.dijkstra[0][mp.y * 80 + mp.x]}"] unless args.state.dijkstra[0].nil?
 
     if mp != args.state.last_mp && grid.present?(mp.x, mp.y)
       astar = Pathfinding.a_star(args, [args.state.player_x, args.state.player_y], mp, args.state.grid)

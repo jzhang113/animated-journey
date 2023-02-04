@@ -8,8 +8,12 @@ module MapHelpers
           run(args)
         end
 
-        cb = ->(args) { render_map(args) }
-        Process.new(fiber, $debug ? 5 : 0, $debug ? cb : nil)
+        if $debug[:show_mapgen]
+          cb = ->(args) { render_map(args) }
+          Process.new(fiber, 5, cb)
+        else
+          Process.new(fiber)
+        end
       end
     end
   end
@@ -49,6 +53,7 @@ module MapHelpers
   def render_map(args)
     map = args.state.grid
 
+    args.outputs[:map].background_color = [0, 0, 0]
     map.grid.map_2d do |row, col, t|
       next if t.nil?
 
@@ -61,7 +66,7 @@ module MapHelpers
         125,
         t == 1 ? 255 : 125,
         255,
-        $debug ? t % 10 : '.'
+        $debug[:show_mapgen] ? t % 10 : '.'
       )
     end
   end
