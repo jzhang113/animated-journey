@@ -109,6 +109,7 @@ def initialize(args)
   args.state.key_delay ||= REPEAT_DELAY_FRAMES
   args.state.dijkstra ||= []
   args.state.fov ||= []
+  args.state.fov_debug ||= false
 end
 
 def handle_input(args)
@@ -132,6 +133,7 @@ def handle_input(args)
   try_move(args, new_player_x, new_player_y)
 
   args.state.procs[:mapgen] = process_chain(args.state.mapgen) if args.inputs.keyboard.key_down.r
+  args.state.fov_debug = !args.state.fov_debug if args.inputs.keyboard.key_down.q
 end
 
 def try_move(args, new_x, new_y)
@@ -140,7 +142,7 @@ def try_move(args, new_x, new_y)
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
   args.state.procs[:dijkstra] = process_chain([Pathfinding::Dijkstra])
-  args.state.fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 5)
+  args.state.fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 10)
   Fov.render(args)
 end
 
@@ -201,6 +203,12 @@ def draw(args)
     source_w: screen_w, source_h: screen_h,
     path: :fov_map
   }
+
+  args.outputs.sprites << {
+    x: grid.x, y: grid.y, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :tmp
+  } if args.state.fov_debug
 
   # player
   args.outputs.sprites << tile_extended(
