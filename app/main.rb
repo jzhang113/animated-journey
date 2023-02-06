@@ -51,6 +51,8 @@ def tick(args)
     handle_input(args)
   end
 
+  update_lightmap(args) if args.tick_count % 10 == 0
+
   run_procs(args) unless args.state.procs.empty?
 
   draw(args)
@@ -108,8 +110,9 @@ def initialize(args)
   args.state.next_player_y ||= 0
   args.state.key_delay ||= REPEAT_DELAY_FRAMES
   args.state.dijkstra ||= []
-  args.state.fov ||= []
+  args.state.seen ||= {}
   args.state.fov_debug ||= false
+  args.state.light_sources ||= {}
 end
 
 def handle_input(args)
@@ -142,8 +145,27 @@ def try_move(args, new_x, new_y)
   args.state.next_player_x = new_x
   args.state.next_player_y = new_y
   args.state.procs[:dijkstra] = process_chain([Pathfinding::Dijkstra])
-  args.state.fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 10)
-  Fov.render(args)
+
+  fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 10)
+  Fov.render(args, fov, "player_fov", 255, true)
+
+  args.state.light_sources[:player] = { x: new_x, y: new_y, r: 5, style: "m", prev_fov: nil }
+  update_lightmap(args)
+end
+
+def update_lightmap(args)
+  args.state.light_map = {}
+  args.outputs[:light_map].background_color = [0, 0, 0]
+  i = (args.tick_count.idiv 10)
+
+  args.state.light_sources.each do |key, light|
+    l = light.style.length
+    brightness = light.style[i % l].ord - 'a'.ord
+    brightness *= 10
+
+    light.prev_fov = Fov.visible_in_range(args.state.grid, [light[:x], light[:y]], 10) if light.prev_fov.nil?
+    Fov.render(args, light.prev_fov, key, brightness)
+  end
 end
 
 def draw(args)
@@ -164,19 +186,6 @@ def draw(args)
     b: 255
   }
 
-  # statics
-  # args.outputs.sprites << {
-  #   x: grid.x,
-  #   y: grid.y,
-  #   w: screen_w,
-  #   h: screen_h,
-  #   path: :bg_map,
-  #   source_x: 0,
-  #   source_y: 0,
-  #   source_w: grid.tile_size * grid.width,
-  #   source_h: grid.tile_size * grid.height,
-  # }
-
   # fractional camera motion
   spline = [
     [0.0, 0.75, 0.85, 1.0]
@@ -187,17 +196,36 @@ def draw(args)
   fractional_y = frac * (args.state.next_player_y - args.state.player_y)
 
   # merge fov and map
+  args.outputs[:lights].background_color = [0, 0, 0]
+  args.state.light_sources.each do |key, _|
+    args.outputs[:lights].sprites << {
+      x: 0, y: 0, w: screen_w, h: screen_h,
+      source_w: screen_w, source_h: screen_h,
+      path: key,
+      blendmode_enum: 2
+    }
+  end
+
   args.outputs[:fov_map].sprites << {
     x: 0, y: 0, w: screen_w, h: screen_h,
     source_w: screen_w, source_h: screen_h,
-    path: :fov
+    path: :lights
   }
+
+  args.outputs[:fov_map].sprites << {
+    x: 0, y: 0, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :player_fov,
+    blendmode_enum: 4
+  }
+
   args.outputs[:fov_map].sprites << {
     x: 0, y: 0, w: screen_w, h: screen_h,
     source_w: screen_w, source_h: screen_h,
     path: :map,
     blendmode_enum: 4
   }
+
   args.outputs.sprites << {
     x: grid.x, y: grid.y, w: screen_w, h: screen_h,
     source_w: screen_w, source_h: screen_h,
@@ -207,7 +235,7 @@ def draw(args)
   args.outputs.sprites << {
     x: grid.x, y: grid.y, w: screen_w, h: screen_h,
     source_w: screen_w, source_h: screen_h,
-    path: :tmp
+    path: :lights
   } if args.state.fov_debug
 
   # player

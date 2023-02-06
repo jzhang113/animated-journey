@@ -3,9 +3,7 @@
 # https://www.albertford.com/shadowcasting/
 class Fov
   class << self
-    def visible_in_range(map, pos, range)
-      r = range.floor
-
+    def visible_in_range(map, pos, _brightness)
       @visible = {}
 
       $args.outputs[:tmp].lines << [
@@ -61,20 +59,14 @@ class Fov
     def line_pos2(quad, prev)
       line_x = prev.x
       line_x += 0.5 if quad == :east || quad == :west
-      # line_x += 1 if quad == :west
       line_y = prev.y
       line_y += 0.5 if quad == :north || quad == :south
 
       [line_x, line_y]
     end
 
-
     def slope(col, depth)
       [col - 0.5, depth]
-    end
-
-    def row
-      Row.new(1, [-1, 1], [1, 1])
     end
 
     Row = Struct.new(:depth, :start_slope, :end_slope) do
@@ -97,6 +89,10 @@ class Fov
       end
     end
 
+    def is_symmetric(other_row, col)
+      other_row.range.cover?(col)
+    end
+
     def scan(map, start, quad, row)
       rows = [row]
 
@@ -108,18 +104,33 @@ class Fov
         row.range.each do |col|
           pos = transform(quad, start, col, row.depth)
 
-          if !is_opaque(map, pos.x, pos.y) # || is_symmetric()
+          # if !is_opaque(map, pos.x, pos.y)
+          #   @visible[pos.y * 80 + pos.x] = true
+
+          #   $args.outputs[:tmp].borders << [
+          #     pos.x * map.tile_size, pos.y * map.tile_size,
+          #     map.tile_size, map.tile_size,
+          #     0, 255, 0
+          #   ]
+          # end
+
+          if is_symmetric(row, col)
             @visible[pos.y * 80 + pos.x] = true
+            $args.state.seen[pos.y * 80 + pos.x] = true
+            # $args.outputs[:tmp].borders << [
+            #   pos.x * map.tile_size, pos.y * map.tile_size,
+            #   map.tile_size, map.tile_size,
+            #   0, 0, 255
+            # ] unless @visible.include?(pos.y * 80 + pos.x)
           end
 
           if !prev.nil? && is_opaque(map, prev.x, prev.y) && !is_opaque(map, pos.x, pos.y)
             row.start_slope = slope(col, row.depth)
 
-
             $args.outputs[:tmp].borders << [
               prev.x * map.tile_size,
               prev.y * map.tile_size,
-              map.tile_size, map.tile_size, 0, 255, 0
+              map.tile_size, map.tile_size, 0, 255, 0, 0, 10
             ]
 
             $args.outputs[:tmp].lines << [
@@ -160,21 +171,38 @@ class Fov
       end
     end
 
-    def render(args)
+    def render(args, fov, target, a, is_player = false)
       grid = args.state.grid
 
-      args.outputs[:fov].background_color = $debug[:reveal_map] ? [150, 150, 150] : [0, 0, 0]
-      args.state.fov.each do |idx, _|
+      args.outputs[target].background_color = $debug[:reveal_map] ? [100, 100, 100] : [0, 0, 0]
+
+      args.state.seen.each do |idx, _|
         x, y = [idx % grid.width, idx.idiv(grid.width)]
 
-        args.outputs[:fov].solids << {
+        args.outputs[target].solids << {
           x: x * grid.tile_size,
           y: y * grid.tile_size,
           w: grid.tile_size,
           h: grid.tile_size,
           r: 255,
           g: 255,
-          b: 255
+          b: 255,
+          a: 10
+        }
+      end if is_player
+
+      fov.each do |idx, _|
+        x, y = [idx % grid.width, idx.idiv(grid.width)]
+
+        args.outputs[target].solids << {
+          x: x * grid.tile_size,
+          y: y * grid.tile_size,
+          w: grid.tile_size,
+          h: grid.tile_size,
+          r: 255,
+          g: 255,
+          b: 255,
+          a: a
         }
       end
     end

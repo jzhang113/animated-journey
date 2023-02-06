@@ -55,19 +55,31 @@ module MapHelpers
 
     args.outputs[:map].background_color = [0, 0, 0]
     map.grid.map_2d do |row, col, t|
-      next if t.nil?
-
-      args.outputs[:map].sprites << tile_extended(
-        col * map.tile_size,
-        row * map.tile_size,
-        map.tile_size,
-        map.tile_size,
-        t == 2 ? 255 : 125,
-        125,
-        t == 1 ? 255 : 125,
-        255,
-        $debug[:show_mapgen] ? t % 10 : '.'
-      )
+      if t.nil?
+        args.outputs[:map].sprites << tile_extended(
+          col * map.tile_size,
+          row * map.tile_size,
+          map.tile_size,
+          map.tile_size,
+          255,
+          255,
+          255,
+          230,
+          '#'
+        )
+      else
+        args.outputs[:map].sprites << tile_extended(
+          col * map.tile_size,
+          row * map.tile_size,
+          map.tile_size,
+          map.tile_size,
+          t == 2 ? 255 : 125,
+          125,
+          t == 1 ? 255 : 125,
+          255,
+          $debug[:show_mapgen] ? t % 10 : '.'
+        )
+      end
     end
   end
 end
