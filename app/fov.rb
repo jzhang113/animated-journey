@@ -9,20 +9,7 @@ class Fov
       @start = pos
       @light_walls = light_walls
 
-      $args.outputs[:tmp].lines << [
-        (pos.x - 9.5) * map.tile_size,
-        (pos.y - 9.5) * map.tile_size,
-        (pos.x + 10.5) * map.tile_size,
-        (pos.y + 10.5) * map.tile_size,
-        255, 255, 255
-      ]
-      $args.outputs[:tmp].lines << [
-        (pos.x + 10.5) * map.tile_size,
-        (pos.y - 9.5) * map.tile_size,
-        (pos.x - 9.5) * map.tile_size,
-        (pos.y + 10.5) * map.tile_size,
-        255, 255, 255
-      ]
+      draw_fov_quadrants(pos) if $debug[:show_fov_calc]
 
       @visible[pos.y * 80 + pos.x] = 0
       scan(:south, Row.new(1, [-1, 1], [1, 1]))
@@ -48,24 +35,6 @@ class Fov
       when :west
         [start.x - depth, start.y + col]
       end
-    end
-
-    def line_pos(quad, prev)
-      line_x = prev.x + 0.5
-      line_x += 0.5 if quad == :north || quad == :south
-      line_y = prev.y + 0.5
-      line_y += 0.5 if quad == :east || quad == :west
-
-      [line_x, line_y]
-    end
-
-    def line_pos2(quad, prev)
-      line_x = prev.x
-      line_x += 0.5 if quad == :east || quad == :west
-      line_y = prev.y
-      line_y += 0.5 if quad == :north || quad == :south
-
-      [line_x, line_y]
     end
 
     def slope(col, depth)
@@ -119,40 +88,14 @@ class Fov
 
           if !prev.nil? && is_opaque(prev.x, prev.y) && !is_opaque(pos.x, pos.y)
             row.start_slope = slope(col, row.depth)
-
-            $args.outputs[:tmp].borders << [
-              prev.x * @map.tile_size,
-              prev.y * @map.tile_size,
-              @map.tile_size, @map.tile_size, 0, 255, 0, 0, 10
-            ]
-
-            $args.outputs[:tmp].lines << [
-              (@start.x + 0.5) * @map.tile_size,
-              (@start.y + 0.5) * @map.tile_size,
-              (line_pos(quad, prev).x) * @map.tile_size,
-              (line_pos(quad, prev).y) * @map.tile_size,
-              0, 240, 240, 150
-            ]
+            draw_fov_start_slopes(quad, prev) if $debug[:show_fov_calc]
           end
 
           if !prev.nil? && !is_opaque(prev.x, prev.y) && is_opaque(pos.x, pos.y)
             next_row = row.next
             next_row.end_slope = slope(col, row.depth)
             rows << next_row
-
-            $args.outputs[:tmp].borders << [
-              pos.x * @map.tile_size,
-              pos.y * @map.tile_size,
-              @map.tile_size, @map.tile_size, 255, 0, 0
-            ]
-
-            $args.outputs[:tmp].lines << [
-              (@start.x + 0.5) * @map.tile_size,
-              (@start.y + 0.5) * @map.tile_size,
-              (line_pos2(quad, pos).x) * @map.tile_size,
-              (line_pos2(quad, pos).y) * @map.tile_size,
-              240, 0, 240, 150
-            ]
+            draw_fov_end_slopes(quad, pos) if $debug[:show_fov_calc]
           end
 
           prev = pos
@@ -187,6 +130,83 @@ class Fov
           a: 100 + 10 * brightness
         } if dist <= transform_dist(brightness)
       end
+    end
+
+    private
+
+    # Helpers for $debug[:show_fov_calc]
+    def draw_fov_quadrants(pos)
+      $args.outputs[:fov_calc].lines << {
+        x: (pos.x - 9.5) * @map.tile_size,
+        y: (pos.y - 9.5) * @map.tile_size,
+        x2: (pos.x + 10.5) * @map.tile_size,
+        y2: (pos.y + 10.5) * @map.tile_size,
+        r: 255, g: 255, b: 255
+      }
+
+      $args.outputs[:fov_calc].lines << {
+        x: (pos.x + 10.5) * @map.tile_size,
+        y: (pos.y - 9.5) * @map.tile_size,
+        x2: (pos.x - 9.5) * @map.tile_size,
+        y2: (pos.y + 10.5) * @map.tile_size,
+        r: 255, g: 255, b: 255
+      }
+    end
+
+    def draw_fov_start_slopes(quad, prev)
+      $args.outputs[:fov_calc].borders << {
+        x: prev.x * @map.tile_size,
+        y: prev.y * @map.tile_size,
+        w: @map.tile_size, h: @map.tile_size,
+        r: 0, g: 255, b: 0
+      }
+
+      endpoint = start_slope_endpoint(quad, prev)
+      $args.outputs[:fov_calc].lines << {
+        x: (@start.x + 0.5) * @map.tile_size,
+        y: (@start.y + 0.5) * @map.tile_size,
+        x2: endpoint.x * @map.tile_size,
+        y2: endpoint.y * @map.tile_size,
+        r: 0, g: 240, b: 240, a: 150
+      }
+    end
+
+    def draw_fov_end_slopes(quad, pos)
+      $args.outputs[:fov_calc].borders << {
+        x: pos.x * @map.tile_size,
+        y: pos.y * @map.tile_size,
+        w: @map.tile_size, h: @map.tile_size,
+        r: 255, g: 0, b: 0
+      }
+
+      endpoint = end_slope_endpoint(quad, pos)
+      $args.outputs[:fov_calc].lines << {
+        x: (@start.x + 0.5) * @map.tile_size,
+        y: (@start.y + 0.5) * @map.tile_size,
+        x2: endpoint.x * @map.tile_size,
+        y2: endpoint.y * @map.tile_size,
+        r: 240, g: 0, b: 240, a: 150
+      }
+    end
+
+    def start_slope_endpoint(quad, pos)
+      line_x = pos.x + 0.5
+      line_x += 0.5 if %i[north south].include? quad
+
+      line_y = pos.y + 0.5
+      line_y += 0.5 if %i[east west].include? quad
+
+      [line_x, line_y]
+    end
+
+    def end_slope_endpoint(quad, pos)
+      line_x = pos.x
+      line_x += 0.5 if %i[east west].include? quad
+
+      line_y = pos.y
+      line_y += 0.5 if %i[north south].include? quad
+
+      [line_x, line_y]
     end
   end
 end

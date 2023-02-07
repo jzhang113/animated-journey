@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
-$debug = { show_mapgen: false, reveal_map: false }
+$debug = {
+  show_mapgen: false,
+  reveal_map: false,
+  show_fov_calc: false,
+  show_lightmap: false,
+}
 
 require 'app/data_struct/heap.rb'
 
@@ -112,7 +117,6 @@ def initialize(args)
   args.state.key_delay ||= REPEAT_DELAY_FRAMES
   args.state.dijkstra ||= []
   args.state.seen ||= {}
-  args.state.fov_debug ||= false
   args.state.light_sources ||= {}
 end
 
@@ -137,7 +141,6 @@ def handle_input(args)
   try_move(args, new_player_x, new_player_y)
 
   args.state.procs[:mapgen] = process_chain(args.state.mapgen) if args.inputs.keyboard.key_down.r
-  args.state.fov_debug = !args.state.fov_debug if args.inputs.keyboard.key_down.q
 end
 
 def try_move(args, new_x, new_y)
@@ -264,8 +267,14 @@ def draw(args)
   args.outputs.sprites << {
     x: grid.x, y: grid.y, w: screen_w, h: screen_h,
     source_w: screen_w, source_h: screen_h,
+    path: :fov_calc
+  } if $debug[:show_fov_calc]
+
+  args.outputs.sprites << {
+    x: grid.x, y: grid.y, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
     path: :lights
-  } if args.state.fov_debug
+  } if $debug[:show_lightmap]
 
   # player
   args.outputs.sprites << tile_extended(
