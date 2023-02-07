@@ -3,8 +3,11 @@
 # https://www.albertford.com/shadowcasting/
 class Fov
   class << self
-    def visible_in_range(map, pos, _brightness)
+    def visible_in_range(map, pos, light_walls: false)
       @visible = {}
+      @map = map
+      @start = pos
+      @light_walls = light_walls
 
       $args.outputs[:tmp].lines << [
         (pos.x - 9.5) * map.tile_size,
@@ -21,17 +24,17 @@ class Fov
         255, 255, 255
       ]
 
-      @visible[pos.y * 80 + pos.x] = true
-      scan(map, pos, :south, Row.new(1, [-1, 1], [1, 1]))
-      scan(map, pos, :north, Row.new(1, [-1, 1], [1, 1]))
-      scan(map, pos, :east, Row.new(1, [-1, 1], [1, 1]))
-      scan(map, pos, :west, Row.new(1, [-1, 1], [1, 1]))
+      @visible[pos.y * 80 + pos.x] = 0
+      scan(:south, Row.new(1, [-1, 1], [1, 1]))
+      scan(:north, Row.new(1, [-1, 1], [1, 1]))
+      scan(:east, Row.new(1, [-1, 1], [1, 1]))
+      scan(:west, Row.new(1, [-1, 1], [1, 1]))
 
       @visible
     end
 
-    def is_opaque(map, x, y)
-      !map.present?(x, y)
+    def is_opaque(x, y)
+      !@map.present?(x, y)
     end
 
     def transform(quad, start, col, depth)
@@ -89,11 +92,11 @@ class Fov
       end
     end
 
-    def is_symmetric(other_row, col)
-      other_row.range.cover?(col)
+    def is_symmetric(row, col)
+      row.range.cover?(col)
     end
 
-    def scan(map, start, quad, row)
+    def scan(quad, row)
       rows = [row]
 
       until rows.empty?
@@ -102,62 +105,52 @@ class Fov
         prev = nil
 
         row.range.each do |col|
-          pos = transform(quad, start, col, row.depth)
+          pos = transform(quad, @start, col, row.depth)
 
-          # if !is_opaque(map, pos.x, pos.y)
-          #   @visible[pos.y * 80 + pos.x] = true
-
-          #   $args.outputs[:tmp].borders << [
-          #     pos.x * map.tile_size, pos.y * map.tile_size,
-          #     map.tile_size, map.tile_size,
-          #     0, 255, 0
-          #   ]
-          # end
-
-          if is_symmetric(row, col)
-            @visible[pos.y * 80 + pos.x] = true
+          if !@light_walls && !is_opaque(pos.x, pos.y)
+            @visible[pos.y * 80 + pos.x] = row.depth
             $args.state.seen[pos.y * 80 + pos.x] = true
-            # $args.outputs[:tmp].borders << [
-            #   pos.x * map.tile_size, pos.y * map.tile_size,
-            #   map.tile_size, map.tile_size,
-            #   0, 0, 255
-            # ] unless @visible.include?(pos.y * 80 + pos.x)
           end
 
-          if !prev.nil? && is_opaque(map, prev.x, prev.y) && !is_opaque(map, pos.x, pos.y)
+          if @light_walls && is_symmetric(row, col)
+            @visible[pos.y * 80 + pos.x] = row.depth
+            $args.state.seen[pos.y * 80 + pos.x] = true
+          end
+
+          if !prev.nil? && is_opaque(prev.x, prev.y) && !is_opaque(pos.x, pos.y)
             row.start_slope = slope(col, row.depth)
 
             $args.outputs[:tmp].borders << [
-              prev.x * map.tile_size,
-              prev.y * map.tile_size,
-              map.tile_size, map.tile_size, 0, 255, 0, 0, 10
+              prev.x * @map.tile_size,
+              prev.y * @map.tile_size,
+              @map.tile_size, @map.tile_size, 0, 255, 0, 0, 10
             ]
 
             $args.outputs[:tmp].lines << [
-              (start.x + 0.5) * map.tile_size,
-              (start.y + 0.5) * map.tile_size,
-              (line_pos(quad, prev).x) * map.tile_size,
-              (line_pos(quad, prev).y) * map.tile_size,
+              (@start.x + 0.5) * @map.tile_size,
+              (@start.y + 0.5) * @map.tile_size,
+              (line_pos(quad, prev).x) * @map.tile_size,
+              (line_pos(quad, prev).y) * @map.tile_size,
               0, 240, 240, 150
             ]
           end
 
-          if !prev.nil? && !is_opaque(map, prev.x, prev.y) && is_opaque(map, pos.x, pos.y)
+          if !prev.nil? && !is_opaque(prev.x, prev.y) && is_opaque(pos.x, pos.y)
             next_row = row.next
             next_row.end_slope = slope(col, row.depth)
             rows << next_row
 
             $args.outputs[:tmp].borders << [
-              pos.x * map.tile_size,
-              pos.y * map.tile_size,
-              map.tile_size, map.tile_size, 255, 0, 0
+              pos.x * @map.tile_size,
+              pos.y * @map.tile_size,
+              @map.tile_size, @map.tile_size, 255, 0, 0
             ]
 
             $args.outputs[:tmp].lines << [
-              (start.x + 0.5) * map.tile_size,
-              (start.y + 0.5) * map.tile_size,
-              (line_pos2(quad, pos).x) * map.tile_size,
-              (line_pos2(quad, pos).y) * map.tile_size,
+              (@start.x + 0.5) * @map.tile_size,
+              (@start.y + 0.5) * @map.tile_size,
+              (line_pos2(quad, pos).x) * @map.tile_size,
+              (line_pos2(quad, pos).y) * @map.tile_size,
               240, 0, 240, 150
             ]
           end
@@ -165,18 +158,22 @@ class Fov
           prev = pos
         end
 
-        if !prev.nil? && !is_opaque(map, prev.x, prev.y)
+        if !prev.nil? && !is_opaque(prev.x, prev.y)
           rows << row.next
         end
       end
     end
 
-    def render(args, fov, target, a, is_player = false)
+    def transform_dist(n)
+      (0.2 * n - 2)**3 + 10
+    end
+
+    def render(args, fov, target, brightness, color: Color.new(255, 255, 255))
       grid = args.state.grid
 
       args.outputs[target].background_color = $debug[:reveal_map] ? [100, 100, 100] : [0, 0, 0]
 
-      args.state.seen.each do |idx, _|
+      fov.each do |idx, dist|
         x, y = [idx % grid.width, idx.idiv(grid.width)]
 
         args.outputs[target].solids << {
@@ -184,26 +181,11 @@ class Fov
           y: y * grid.tile_size,
           w: grid.tile_size,
           h: grid.tile_size,
-          r: 255,
-          g: 255,
-          b: 255,
-          a: 10
-        }
-      end if is_player
-
-      fov.each do |idx, _|
-        x, y = [idx % grid.width, idx.idiv(grid.width)]
-
-        args.outputs[target].solids << {
-          x: x * grid.tile_size,
-          y: y * grid.tile_size,
-          w: grid.tile_size,
-          h: grid.tile_size,
-          r: 255,
-          g: 255,
-          b: 255,
-          a: a
-        }
+          r: color.r,
+          g: color.g,
+          b: color.b,
+          a: 100 + 10 * brightness
+        } if dist <= transform_dist(brightness)
       end
     end
   end

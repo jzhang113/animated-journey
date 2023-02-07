@@ -37,6 +37,7 @@ require 'app/sprite_lookup.rb'
 require 'app/pathfinding.rb'
 
 require 'app/fov.rb'
+require 'app/lighting.rb'
 
 REPEAT_DELAY_FRAMES = 4
 
@@ -146,25 +147,46 @@ def try_move(args, new_x, new_y)
   args.state.next_player_y = new_y
   args.state.procs[:dijkstra] = process_chain([Pathfinding::Dijkstra])
 
-  fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], 10)
-  Fov.render(args, fov, "player_fov", 255, true)
+  fov = Fov.visible_in_range(args.state.grid, [new_x, new_y], light_walls: true)
+  Fov.render(args, fov, :player_fov, 255)
 
-  args.state.light_sources[:player] = { x: new_x, y: new_y, r: 5, style: "m", prev_fov: nil }
+  args.state.seen.each do |idx, _|
+    x, y = [idx % args.state.grid.width, idx.idiv(args.state.grid.width)]
+
+    args.outputs[:player_seen].solids << {
+      x: x * args.state.grid.tile_size,
+      y: y * args.state.grid.tile_size,
+      w: args.state.grid.tile_size,
+      h: args.state.grid.tile_size,
+      r: 255,
+      g: 255,
+      b: 255,
+      a: 100
+    }
+  end
+
+  args.state.light_sources[:player] = { x: new_x, y: new_y, r: 5, style: "k", prev_fov: fov }
   update_lightmap(args)
 end
 
 def update_lightmap(args)
   args.state.light_map = {}
+  i = args.tick_count.idiv(10)
   args.outputs[:light_map].background_color = [0, 0, 0]
-  i = (args.tick_count.idiv 10)
 
   args.state.light_sources.each do |key, light|
-    l = light.style.length
-    brightness = light.style[i % l].ord - 'a'.ord
-    brightness *= 10
+    style = if light.style.is_a? Integer
+              Lighting::LIGHT_STYLES[light.style]
+            else
+              light.style
+            end
 
-    light.prev_fov = Fov.visible_in_range(args.state.grid, [light[:x], light[:y]], 10) if light.prev_fov.nil?
-    Fov.render(args, light.prev_fov, key, brightness)
+    brightness = style[i % style.length].ord - 'a'.ord
+    light.prev_fov = Fov.visible_in_range(args.state.grid, [light[:x], light[:y]], light_walls: true) if light.prev_fov.nil?
+
+    color = Color.new(255, 255, 255)
+    color = Color.new(255, 140, 0) if key != :player
+    Fov.render(args, light.prev_fov, key, brightness, color: color)
   end
 end
 
@@ -217,6 +239,13 @@ def draw(args)
     source_w: screen_w, source_h: screen_h,
     path: :player_fov,
     blendmode_enum: 4
+  }
+
+  args.outputs[:fov_map].sprites << {
+    x: 0, y: 0, w: screen_w, h: screen_h,
+    source_w: screen_w, source_h: screen_h,
+    path: :player_seen,
+    blendmode_enum: 2
   }
 
   args.outputs[:fov_map].sprites << {
